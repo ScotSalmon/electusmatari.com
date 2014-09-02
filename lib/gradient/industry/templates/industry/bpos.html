@@ -9,14 +9,14 @@
 
 <table class="data">
   <thead>
-    <tr><th>Name</th><th>ME</th><th>PE</th><th></th></tr>
+    <tr><th>Name</th><th>ME</th><th>TE</th><th></th></tr>
   </thead>
   <tbody>
     {% for bpo in bpo_list %}
     <tr class="{% cycle odd,even %}">
       <td>{{bpo.typename}}</td>
       <td class="numeric">{{bpo.me}}</td>
-      <td class="numeric">{{bpo.pe}}</td>
+      <td class="numeric">{{bpo.te}}</td>
       <td>
         <form method="get" action="/industry/bpos/{{bpo.id}}/edit/">
           <input type="submit" value="Edit" />

@@ -141,30 +141,18 @@ class InvType(object):
         c.execute("SELECT rt.typeid, "
                   "       rt.typename, "
                   "       req.quantity, "
-                  "       req.damageperjob, "
-                  "       req.recycle "
-                  "FROM ccp.ramtyperequirements req "
+                  "       req.consume "
+                  "FROM ccp.industryactivitymaterials req "
                   "     INNER JOIN ccp.invtypes rt "
-                  "       ON rt.typeid = req.requiredtypeid "
+                  "       ON rt.typeid = req.materialtypeid "
                   "     INNER JOIN ccp.ramactivities act "
                   "       ON act.activityid = req.activityid "
                   "WHERE req.typeid = %s "
                   "  AND LOWER(act.activityname) = LOWER(%s)",
                   (self.typeid, activity))
-        return [(InvType(typeid, typename), qty, dpj, recycle)
-                for (typeid, typename, qty, dpj, recycle)
+        return [(InvType(typeid, typename), qty, consume)
+                for (typeid, typename, qty, consume)
                 in c.fetchall()]
-
-    def wastefactor(self):
-        c = connection.cursor()
-        c.execute("SELECT wastefactor "
-                  "FROM ccp.invblueprinttypes "
-                  "WHERE blueprinttypeid = %s",
-                  (self.typeid,))
-        if c.rowcount > 0:
-            return c.fetchone()[0]
-        else:
-            return None
 
     def race(self):
         c = connection.cursor()
@@ -260,7 +248,7 @@ def get_decryptors(racename):
               "  AND g.groupname = 'Decryptors - ' || %s",
               (racename,))
     result = []
-    result.append(KeyValue(typename=None, chance=1.0, runs=0, me=0, pe=0))
+    result.append(KeyValue(typename=None, chance=1.0, runs=0, me=0, te=0))
     for (typeid, typename) in c.fetchall():
         invtype = InvType(typeid, typename)
         result.append(KeyValue(
@@ -270,7 +258,7 @@ def get_decryptors(racename):
                         'inventionPropabilityMultiplier')),
                 runs=int(invtype.attribute('inventionMaxRunModifier')),
                 me=int(invtype.attribute('inventionMEModifier')),
-                pe=int(invtype.attribute('inventionPEModifier'))))
+                te=int(invtype.attribute('inventionTEModifier'))))
     return result
 
 class KeyValue(object):

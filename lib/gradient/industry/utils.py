@@ -67,7 +67,7 @@ def blueprints(invtype):
     # See if we have the BPO
     try:
         bpo = BlueprintOriginal.objects.get(typename=bptype.typename)
-        return [Blueprint(bptype, me=bpo.me, pe=bpo.pe, source='Owned BPO')]
+        return [Blueprint(bptype, me=bpo.me, te=bpo.te, source='Owned BPO')]
     except BlueprintOriginal.DoesNotExist:
         pass
     # Nope. Can we invent this blueprint?
@@ -80,7 +80,7 @@ def blueprints(invtype):
             pass
     # Maybe we regularly by the BPCs?
     if bptype.typename in SYNTH_BOOSTER_BPC:
-        return [Blueprint(bptype, me=0, pe=0, source='Market')]
+        return [Blueprint(bptype, me=0, te=0, source='Market')]
     # FIXME!
     # - Reverse engineering
     return []
@@ -95,11 +95,11 @@ def invented_blueprints(t2bp):
     t1bp = t1product.blueprint()
 
     base_extra = Bag()
-    for reqtype, qty, dpj, recycle in t1bp.typerequirements('Invention'):
+    for reqtype, qty, consume in t1bp.typerequirements('Invention'):
         if reqtype.group() == 'Data Interfaces':
             continue
-        if dpj > 0:
-            base_extra.add(reqtype.typename, qty * dpj)
+        if consume > 0:
+            base_extra.add(reqtype.typename, qty)
 
     if (t1group in ('Battlecruiser', 'Battleship') or
         t2product.typename == 'Hulk'):
@@ -124,13 +124,13 @@ def invented_blueprints(t2bp):
                            decryptor.runs),
                        1),
                    t2maxruns)
-        me = -4 + decryptor.me
-        pe = -4 + decryptor.pe
+        me = 2 + decryptor.me
+        te = 4 + decryptor.te
         extra = base_extra.copy()
         if decryptor.typename:
             extra[decryptor.typename] = 1
         blueprints.append(Blueprint(t2bp,
-                                    me=me, pe=pe,
+                                    me=me, te=te,
                                     runs=runs,
                                     source='Invention',
                                     extra=extra * (1.0/(chance*runs))))
@@ -140,53 +140,35 @@ def invented_blueprints(t2bp):
 def build(blueprint):
     """
     Return the materials needed to build this blueprint.
-
-    Excluding blueprint.extra.
     """
     bptype = blueprint.invtype
     product = bptype.product()
     base = Bag()
-    for reqtype, qty in product.typematerials():
-        base[reqtype.typename] = qty
-    more = Bag()
-    for reqtype, qty, dpj, recycle in bptype.typerequirements('Manufacturing'):
-        if dpj < 0.00001:
-            continue
-        if recycle > 0:
-            for reqtype2, qty2 in reqtype.typematerials():
-                if qty2 > base[reqtype2.typename]:
-                    del base[reqtype2.typename]
-                else:
-                    base[reqtype2.typename] -= qty2
-        if dpj > 0.99999:
-            more[reqtype.typename] = qty
-        else:
-            more[reqtype.typename] = qty * dpj
-    bwf = bptype.wastefactor()
-    if blueprint.me >= 0:
-        wf = bwf * 0.01 * (1.0 / (blueprint.me + 1))
-    else:
-        wf = bwf * 0.01 * (1 + 0.1 - blueprint.me * 0.1)
+    for reqtype, qty, consume in bptype.typerequirements('Manufacturing'):
+        if consume > 0:
+            base[reqtype.typename] = qty
+    efficiency = 1.0 - (blueprint.me * 0.01)
     for (key, val) in base.items():
-        base[key] += int(round(val * wf))
-    return (base + more)
+        base[key] += int(round(val * efficiency))
+    return base
 
 class Blueprint(object):
-    def __init__(self, invtype, me=0, pe=0, runs=1,
+    def __init__(self, invtype, me=0, te=0, runs=1,
                  source=None, extra=None):
         self.invtype = invtype
         self.me = me
-        self.pe = pe
+        self.te = te
         self.runs = runs
         self.source = source
         if extra is None:
             self.extra = Bag()
         else:
+            # pretty sure this can't happen post-Crius
             self.extra = extra
 
     def __repr__(self):
-        return ("<Blueprint %s from %s, ME %s, PE %s, %s extra>" %
-                (self.invtype.typename, self.source, self.me, self.pe,
+        return ("<Blueprint %s from %s, ME %s, TE %s, %s extra>" %
+                (self.invtype.typename, self.source, self.me, self.te,
                  len(self.extra)))
 
 class Bag(object):

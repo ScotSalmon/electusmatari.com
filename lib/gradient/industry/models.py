@@ -17,7 +17,7 @@ class BlueprintOriginal(models.Model):
     typeid = models.BigIntegerField(unique=True)
     typename = models.CharField(max_length=255)
     me = models.IntegerField()
-    pe = models.IntegerField()
+    te = models.IntegerField()
 
     class Meta:
         ordering = ["typename"]

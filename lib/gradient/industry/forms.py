@@ -63,5 +63,5 @@ class BlueprintOriginalForm(forms.ModelForm):
 
     class Meta:
         model = BlueprintOriginal
-        fields = ['typename', 'me', 'pe']
+        fields = ['typename', 'me', 'te']
 
