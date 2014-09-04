@@ -94,12 +94,10 @@ def invented_blueprints(t2bp):
     t1group = t1product.group()
     t1bp = t1product.blueprint()
 
-    base_extra = Bag()
+    invention_mats = Bag()
     for reqtype, qty, consume in t1bp.typerequirements('Invention'):
-        if reqtype.group() == 'Data Interfaces':
-            continue
         if consume > 0:
-            base_extra.add(reqtype.typename, qty)
+            invention_mats.add(reqtype.typename, qty)
 
     if (t1group in ('Battlecruiser', 'Battleship') or
         t2product.typename == 'Hulk'):
@@ -126,7 +124,7 @@ def invented_blueprints(t2bp):
                    t2maxruns)
         me = 2 + decryptor.me
         te = 4 + decryptor.te
-        extra = base_extra.copy()
+        extra = invention_mats.copy()
         if decryptor.typename:
             extra[decryptor.typename] = 1
         blueprints.append(Blueprint(t2bp,
@@ -163,7 +161,7 @@ class Blueprint(object):
         if extra is None:
             self.extra = Bag()
         else:
-            # pretty sure this can't happen post-Crius
+            # mats needed to invent the BP, for example
             self.extra = extra
 
     def __repr__(self):
