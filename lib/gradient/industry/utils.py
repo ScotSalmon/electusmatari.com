@@ -88,6 +88,10 @@ def blueprints(invtype):
 def invented_blueprints(t2bp):
     """
     Return a list of blueprint objects for a blueprint name.
+
+    TODO: I think this basically ignores the cost of the invention
+          line, which we could calculate now. See
+          http://community.eveonline.com/news/dev-blogs/industry-3rd-party-developers/
     """
     t2product = t2bp.product()
     t1product = t2product.metatype_parent()
@@ -474,6 +478,8 @@ RENS_BTT = 60004588
 JITA44 = 60003760
 
 def update_publicmarket():
+    # TODO: get this from CREST (/market/prices), see
+    #       http://community.eveonline.com/news/dev-blogs/industry-3rd-party-developers/
     log = logging.getLogger('industry')
     for pl in PriceList.objects.all():
         for regionid in [HEIMATAR, METROPOLIS, MOLDENHEATH, THEFORGE]:
