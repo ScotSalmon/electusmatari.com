@@ -33,8 +33,8 @@ class InvType(object):
 
     def blueprint(self):
         c = connection.cursor()
-        c.execute("SELECT blueprinttypeid "
-                  "FROM ccp.invblueprinttypes "
+        c.execute("SELECT typeid "
+                  "FROM ccp.industryactivityproducts "
                   "WHERE producttypeid = %s",
                   (self.typeid,))
         if c.rowcount > 0:
@@ -45,8 +45,8 @@ class InvType(object):
     def product(self):
         c = connection.cursor()
         c.execute("SELECT producttypeid "
-                  "FROM ccp.invblueprinttypes "
-                  "WHERE blueprinttypeid = %s",
+                  "FROM ccp.industryactivityproducts "
+                  "WHERE typeid = %s",
                   (self.typeid,))
         if c.rowcount > 0:
             return InvType.from_typeid(c.fetchone()[0])
@@ -114,8 +114,8 @@ class InvType(object):
 
     def maxproductionlimit(self):
         c = connection.cursor()
-        c.execute("SELECT maxproductionlimit FROM ccp.invblueprinttypes "
-                  "WHERE blueprinttypeid = %s",
+        c.execute("SELECT maxproductionlimit FROM ccp.industryblueprints "
+                  "WHERE typeid = %s",
                   (self.typeid,))
         if c.rowcount > 0:
             return c.fetchone()[0]

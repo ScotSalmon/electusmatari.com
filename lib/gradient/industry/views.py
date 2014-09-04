@@ -518,9 +518,9 @@ def json_blueprint(request):
     else:
         c = connection.cursor()
         c.execute("SELECT t.typename "
-                  "FROM ccp.invblueprinttypes b "
+                  "FROM ccp.industryblueprints b "
                   "     INNER JOIN ccp.invtypes t "
-                  "       ON b.blueprinttypeid = t.typeid "
+                  "       ON b.typeid = t.typeid "
                   "WHERE t.published = 1 "
                   "  AND t.marketgroupid IS NOT NULL "
                   "  AND t.typename ILIKE %s "
