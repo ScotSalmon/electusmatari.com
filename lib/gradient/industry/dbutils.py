@@ -245,9 +245,7 @@ class InvType(object):
                            qty, minseclevel, factionid))
         return result
 
-def get_decryptors(racename):
-    if racename is None:
-        racename = 'Minmatar'
+def get_decryptors():
     c = connection.cursor()
     c.execute("SELECT t.typeid, t.typename "
               "FROM ccp.invtypes t "
@@ -255,9 +253,7 @@ def get_decryptors(racename):
               "       ON t.groupid = g.groupid "
               "     INNER JOIN ccp.invcategories c "
               "       ON g.categoryid = c.categoryid "
-              "WHERE c.categoryname = 'Decryptors' "
-              "  AND g.groupname = 'Decryptors - ' || %s",
-              (racename,))
+              "WHERE c.categoryname = 'Decryptors' ")
     result = []
     result.append(KeyValue(typename=None, chance=1.0, runs=0, me=0, te=0))
     for (typeid, typename) in c.fetchall():
