@@ -100,28 +100,16 @@ def invented_blueprints(t2bp):
 
     invention_mats = Bag()
     for reqtype, qty, consume in t1bp.typerequirements('Invention'):
-        if consume > 0:
+        if consume:
+            # this is just datacores now
             invention_mats.add(reqtype.typename, qty)
 
-    if (t1group in ('Battlecruiser', 'Battleship') or
-        t2product.typename == 'Hulk'):
-        basechance = 0.2
-    elif (t1group in ('Cruiser', 'Industrial') or
-          t2product.typename == 'Mackinaw'):
-        basechance = 0.25
-    elif (t1group in ('Frigate', 'Destroyer', 'Freighter') or
-          t2product.typename == 'Skiff'):
-        basechance = 0.3
-    else:
-        basechance = 0.4
+    basechance = t1bp.probability()
     t2maxruns = t2bp.maxproductionlimit()
     blueprints = []
-    for decryptor in get_decryptors(t1product.race()):
-        chance = (basechance *
-                  ((1 + 0.01 * ENCRYPTION_SKILL) *
-                   (1 + ((0.02 * (SCIENCE1_SKILL + SCIENCE2_SKILL)) *
-                         (5.0 / (5 - META_LEVEL)))) *
-                   decryptor.chance))
+    for decryptor in get_decryptors():
+        chance = basechance * (1 + ENCRYPTION_SKILL/40 + (SCIENCE1_SKILL+SCIENCE2_SKILL)/30)
+        chance *= decryptor.chance
         runs = min(max(int((t2maxruns / 10.0) +
                            decryptor.runs),
                        1),
@@ -147,7 +135,7 @@ def build(blueprint):
     product = bptype.product()
     base = Bag()
     for reqtype, qty, consume in bptype.typerequirements('Manufacturing'):
-        if consume > 0:
+        if consume:
             base[reqtype.typename] = qty
     efficiency = 1.0 - (blueprint.me * 0.01)
     for (key, val) in base.items():

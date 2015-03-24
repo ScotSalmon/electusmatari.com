@@ -154,8 +154,19 @@ class InvType(object):
                 for (typeid, typename, qty, consume)
                 in c.fetchall()]
 
-    def race(self):
+    def probability(self, activity):
         c = connection.cursor()
+        # TODO: activity needs to be activityid
+        c.execute("SELECT probability FROM ccp.industryactivityprobabilities "
+                  "WHERE typeid = %s AND activityid = %s",
+                  (self.typeid, activity))
+        if c.rowcount > 0:
+            return c.fetchone()[0]
+        else:
+            raise RuntimeError("%s is not a blueprint" %
+                               (self,))
+
+    def race(self):
         c.execute("SELECT r.racename "
                   "FROM ccp.invtypes t "
                   "     INNER JOIN ccp.chrraces r "

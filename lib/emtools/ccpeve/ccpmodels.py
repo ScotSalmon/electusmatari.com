@@ -86,51 +86,54 @@ class Type(models.Model):
         raise RuntimeError('%s model is read-only ' %
                            self.__class__.__name__)
 
-class BlueprintType(models.Model):
-    blueprintTypeID = models.IntegerField(db_column="blueprinttypeid",
+class IndustryBlueprint(models.Model):
+    blueprintTypeID = models.IntegerField(db_column="typeid",
                                           primary_key=True)
-    blueprintType = models.OneToOneField(Type, db_column="blueprinttypeid",
-                                         related_name='blueprintType')
-    parentBlueprintTypeID = models.IntegerField(
-        db_column="parentblueprinttypeid", null=True)
-    parentBlueprintType = models.ForeignKey(Type,
-                                            db_column="parentblueprinttypeid",
-                                            related_name='parentBlueprintType',
-                                            null=True)
+    blueprintType = models.OneToOneField(Type, db_column="typeid",
+                                         related_name='industryBlueprint')
+    maxProductionLimit = models.IntegerField(db_column="maxproductionlimit",
+                                             null=True)
+
+    class Meta:
+        db_table = 'ccp"."industryblueprints'
+        managed = False
+        ordering = ['blueprintType__typeName']
+
+    def save(self, *args, **kwargs):
+        raise RuntimeError('%s model is read-only ' %
+                           self.__class__.__name__)
+
+class IndustryActivityProduct(models.Model):
+    blueprintTypeID = models.IntegerField(db_column="typeid",
+                                          primary_key=True)
+    blueprintType = models.OneToOneField(Type, db_column="typeid",
+                                         related_name='industryActivityProduct')
     productTypeID = models.IntegerField(db_column="producttypeid",
                                         null=True)
     productType = models.OneToOneField(Type, db_column='producttypeid',
                                        related_name='producedBy',
                                        null=True)
-    productionTime = models.IntegerField(db_column="productiontime",
-                                         null=True)
-    techLevel = models.IntegerField(db_column="techlevel",
-                                    null=True)
-    researchProductivityTime = models.IntegerField(
-        db_column="researchproductivitytime",
-        null=True)
-    researchMaterialTime = models.IntegerField(
-        db_column="researchmaterialtime",
-        null=True)
-    researchCopyTime = models.IntegerField(db_column="researchcopytime",
-                                           null=True)
-    researchTechTime = models.IntegerField(db_column="researchtechtime",
-                                           null=True)
-    productivityModifier = models.IntegerField(
-        db_column="productivitymodifier",
-        null=True)
-    materialModifier = models.IntegerField(db_column="materialmodifier",
-                                           null=True)
-    wasteFactor = models.IntegerField(db_column="wastefactor",
-                                      null=True)
-    maxProductionLimit = models.IntegerField(db_column="maxproductionlimit",
-                                             null=True)
-
-    def __unicode__(self):
-        return self.blueprintType.typeName
+    quantity = models.IntegerField()
 
     class Meta:
-        db_table = 'ccp"."invblueprinttypes'
+        db_table = 'ccp"."industryactivityproducts'
+        managed = False
+        ordering = ['blueprintType__typeName']
+
+    def save(self, *args, **kwargs):
+        raise RuntimeError('%s model is read-only ' %
+                           self.__class__.__name__)
+
+class IndustryActivityProbability(models.Model):
+    blueprintTypeID = models.IntegerField(db_column="typeid",
+                                          primary_key=True)
+    blueprintType = models.OneToOneField(Type, db_column="typeid",
+                                         related_name='industryActivityProbability')
+    # is it okay for me to ignore the activityid and producttypeid fields?
+    probability = models.FloatField()
+
+    class Meta:
+        db_table = 'ccp"."industryactivityprobabilities'
         managed = False
         ordering = ['blueprintType__typeName']
 
@@ -215,6 +218,7 @@ class Activity(models.Model):
     published = models.IntegerField()
 
     class Meta:
+        # for whatever reason this is still in the SQL post-Crius
         db_table = 'ccp"."ramactivities'
         managed = False
 
@@ -228,15 +232,16 @@ class TypeRequirement(models.Model):
     type = models.ForeignKey(Type, db_column='typeid')
     activityID = models.IntegerField(db_column='activityid')
     activity = models.ForeignKey(Activity, db_column='activityid')
-    requiredTypeID = models.IntegerField(db_column='requiredtypeid')
-    requiredType = models.ForeignKey(Type, db_column='requiredtypeid',
+    materialTypeID = models.IntegerField(db_column='materialtypeid')
+    materialType = models.ForeignKey(Type, db_column='materialtypeid',
                                      related_name='requiredfor_set')
     quantity = models.IntegerField()
-    damagePerJob = models.FloatField(db_column='damageperjob')
-    recycle = models.IntegerField()
+    consume = models.IntegerField()
 
     class Meta:
-        db_table = 'ccp"."ramtyperequirements'
+        # post-Crius this is _just_ the materials, other requirements
+        # like skills are in another part of the YAML so another table
+        db_table = 'ccp"."industryactivitymaterials'
         managed = False
 
     def save(self, *args, **kwargs):

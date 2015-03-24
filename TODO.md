@@ -7,17 +7,19 @@
         * nothing relevant
     * Crius 1.0 (Jul 2014)
         * removed ramTypeRequirements and ramAssemblyLines
-            * emtools/ccpeve/ccpmodels.py
-            * gradient/industry/dbutils.py
-            * these are expressed in the blueprints YAML now
+            * fixed in dev/scot/crius
         * moved invBlueprintTypes to YAML
-            * emtools/ccpeve/ccpmodels.py
-            * gradient/industry/dbutils.py
-            * gradient/industry/views.py
-            * old schema: http://wiki.eve-id.net/InvBlueprintTypes_(CCP_DB)
+            * fixed in dev/scot/crius
         * Arkady says I shouldn't rely on third-party conversions because eventually those people stop playing and stop updating their conversion, but I think I'll probably use Steve Ronuken's anyway, because waiting for myself to do the conversion is even less reliable...he has a psql conversion now but probably case-sensitive
-        * maybe I should handle this by keeping both old & new db/code side by side? certainly while I work on it that makes sense I think
-        * added cost multiplier columns
+        * I can convert Steve's dump to the psql-friendly lowercase names with a vi regex
+            * first pg_restore it to the text version ("pg_restore postgres-latest.dmp > postgres-latest-text.dmp")
+            * :%s/"\([a-w,y-z]\a*\u\a*\)"/\1/g
+            * that's "strip the quotes off any quoted sequence of letters that starts with a lowercase letter other than x and has at least one uppercase letter"
+                * all the identifiers we care about match this, and it avoids all the non-identifier quoted strings I could find in the content
+                * the "at least one uppercase letter" works because Steve's conversion doesn't quote identifiers that are already all lowercase
+                * the "other than x" silliness is because xMin and xMax need to be kept quoted, fortunately they're the only things that have an x right after a quote
+            * then import to psql ("psql dbname < postgres-latest-text.dmp")
+        * added cost multiplier columns to ramAssemblyLineType*
             * presumably we need to factor this in, unless it's included in the live cost data I'm already getting from the API in 051f8c6291207fecef20e6bdcc67b63cbaddd37f
     * Rubicon 1.2 (Feb 2014)
         * moved dbo.map* to MySQL (universeDataDx.db)

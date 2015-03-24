@@ -13,7 +13,7 @@
 from django.db import connection
 
 from emtools.gmi.models import Index
-from emtools.ccpeve.models import Type, BlueprintType
+from emtools.ccpeve.models import Type, IndustryBlueprint, IndustryActivityProduct, IndustryActivityProbability
 from models import BlueprintOriginal
 
 class ISKType(object):
@@ -71,7 +71,7 @@ def build(ownerid, invtype):
     # Blueprint
     try:
         blueprint = invtype.producedBy
-    except BlueprintType.DoesNotExist:
+    except IndustryActivityProduct.DoesNotExist:
         pass
     else:
         return build_from_blueprint(ownerid, invtype, blueprint)
@@ -117,37 +117,19 @@ def build_from_blueprint(ownerid, invtype, blueprint):
             ownerid=ownerid,
             blueprint=blueprint.blueprintType).me
     except BlueprintOriginal.DoesNotExist:
-        tl = invtype.attribute('techLevel')
-        if tl == 1:
-            me = 0
-        elif tl == 2:
-            me = -4 # FIXME! DECRYPTOR_ME_MODIFIER
-        elif tl == 3:
-            me = 0
-        elif tl == 0:
-            me = 0
+        me = 0 # FIXME! DECRYPTOR_ME_MODIFIER
     base = Basket()
-    for mat in invtype.typematerial_set.all():
-        base[mat.materialType] = mat.quantity
-    extra = Basket()
+    # pre-Crius we had a lot of work here to deal with extra mats, recycling,
+    # and so on; now I think typematerials == typerequirements, and we can
+    # use either one, but it seems like the BP's requirements are the more
+    # intuitive thing to use and more likely to be right if they're different
     for req in blueprint.blueprintType.typerequirement_set.filter(
         activity__activityName='Manufacturing'):
-        if req.recycle > 0:
-            for mat in req.requiredType.typematerial_set.all():
-                if mat.quantity > base[mat.materialType]:
-                    del base[mat.materialType]
-                else:
-                    base[mat.materialType] -= mat.quantity
-        if req.damagePerJob > 0:
-            extra[req.requiredType] = req.quantity * req.damagePerJob
-    bwf = blueprint.wasteFactor
-    if me >= 0:
-        wf = (bwf * 0.01) * (1.0 / (1 + me))
-    else:
-        wf = (bwf * 0.01) * (1 - me)
+        if req.consume:
+            base[req.materialType] = req.quantity
     for mat, qty in base.items():
-        base[mat] += int(round(qty * wf))
-    basket = base + extra
+        base[mat] += int(round(qty * (1.0-me*0.01)))
+    basket = base
     basket[blueprint.blueprintType] = 1
     basket *= 1/float(invtype.portionsize)
     basket.note = 'Blueprint'
@@ -175,11 +157,11 @@ def build_from_reaction(ownerid, invtype):
     return result * (1/float(quantity))
 
 class Decryptor(object):
-    def __init__(self, chance=1.0, runs=0, me=0, pe=0, typenames=None):
+    def __init__(self, chance=1.0, runs=0, me=0, te=0, typenames=None):
         self.chance = chance
         self.runs = runs
         self.me = me
-        self.pe = pe
+        self.te = te
         self._typenames = typenames
 
     def typename(self, raceid):
@@ -219,42 +201,29 @@ T2_DECRYPTORS = [
     ]
 
 ENCRYPTION_SKILL = 4
-SCIENCE_SKILL = 4
-META_LEVEL = 0
+SCIENCE_SKILL_1 = 4
+SCIENCE_SKILL_2 = 4
 
 def invent(invtype, decryptor=NoDecryptor):
-    t1type = invtype.blueprintType.productType.metatype.parentType
-    product = invtype.blueprintType.productType
-    if (t1type.group.groupName in ('Battlecruiser', 'Battleship') or
-        product.typeName == 'Hulk'):
-        chance = 0.2
-    elif (t1type.group.groupName in ('Cruiser', 'Industrial') or
-          product.typeName == 'Mackinaw'):
-        chance = 0.25
-    elif (t1type.group.groupName in ('Frigate', 'Destroyer', 'Freighter') or
-          product.typeName == 'Skiff'):
-        chance = 0.3
-    else:
-        chance = 0.4
-    chance *= ((1 + 0.01 * ENCRYPTION_SKILL) *
-               (1 + ((0.02 * (SCIENCE_SKILL + SCIENCE_SKILL)) *
-                     (5.0 / (5 - META_LEVEL)))) *
-               decryptor.chance)
-    runs = min(max(int((invtype.blueprintType.maxProductionLimit / 10.0) +
+    t1type = invtype.industryActivityProduct.productType.metatype.parentType
+    product = invtype.industryActivityProduct.productType
+    chance = invtype.industryActivityProbability.probability
+    chance *= (1 + ENCRYPTION_SKILL/40 + (SCIENCE_SKILL_1+SCIENCE_SKILL_2)/30)
+    chance *= decryptor.chance
+    runs = min(max(int((invtype.industryBlueprint.maxProductionLimit / 10.0) +
                        decryptor.me),
                    1),
-               invtype.blueprintType.maxProductionLimit)
+               invtype.industryBlueprint.maxProductionLimit)
+    # not sure what this "extra" represents
     extra = t1type.producedBy.blueprintType.typerequirement_set.filter(
         activity__activityName='Invention')
     basket = Basket(note='Invention')
     for entry in extra:
-        # Evil hack, these should have dpj = 0, but don't
-        if entry.requiredType.group.groupName == 'Data Interfaces':
-            continue
-        if entry.damagePerJob > 0:
-            basket[entry.requiredType] = entry.quantity * entry.damagePerJob
+        if entry.consume:
+            basket[entry.materialType] = entry.quantity
     basket *= 1/chance
     basket *= 1.0/runs
+    # not handling the different outcomes from http://community.eveonline.com/news/dev-blogs/lighting-the-invention-bulb
     return basket
 
 RELICS = {
@@ -286,6 +255,8 @@ HYBRID_DECRYPTORS = {
     8: 'Gallente Hybrid Tech Decryptor'
     }
 
+# this is now part of invention, http://community.eveonline.com/news/patch-notes/patch-notes-for-phoebe
+# so probably needs revisiting, but I'm not sure we actually build any t3 stuff anyway
 def reverseengineer(invtype):
     product = invtype.blueprintType.productType
     types = []
@@ -298,9 +269,8 @@ def reverseengineer(invtype):
         extra = invtype.typerequirement_set.filter(
             activity__activityName='Reverse Engineering')
         for entry in extra:
-            if entry.damagePerJob > 0:
-                basket[entry.requiredType] = (entry.quantity *
-                                              entry.damagePerJob)
+            if entry.consume:
+                basket[entry.materialType] = entry.quantity
         basket *= (1.0/(chance * 1.872)) * (1.0/runs)
         types.append(basket)
     (intact, malfunctioning, wrecked) = types
